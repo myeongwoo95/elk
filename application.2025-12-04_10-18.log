@@ -1,0 +1,4 @@
+2025-12-04 10:18:59 INFO  [background-preinit] o.h.validator.internal.util.Version - HV000001: Hibernate Validator 8.0.0.Final
+2025-12-04 10:18:59 INFO  [main] k.c.s.ShortenurlserviceApplication - Starting ShortenurlserviceApplication using Java 17.0.12 with PID 57536 (C:\Users\myeon\Desktop\shorten-url-for-logging\target\classes started by myeon in C:\Users\myeon\Desktop\shorten-url-for-logging)
+2025-12-04 10:18:59 DEBUG [main] k.c.s.ShortenurlserviceApplication - Running with Spring Boot v3.0.1, Spring v6.0.3
+2025-12-04 10:18:59 INFO  [main] k.c.s.ShortenurlserviceApplication - No active profile set, falling back to 1 default profile: "default"
