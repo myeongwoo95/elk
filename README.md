@@ -119,3 +119,90 @@ src/main/resources/
 ```
 # 3. 로그 수집
 
+#### Elasticsearch, Logtash 준비하기
+- logstash 의존성 추가
+- logback.xml 설정 (logstash Appender 추가)
+- logstash.conf 작성
+- docker-compose-elk.yml 실행 (볼륨 필드에서 logstash.conf 파일만 도커 컨테이너 안에 잘 넣어주면됨)
+
+# 4. 로그 시각화와 활용 
+
+#### kibana로 로그 확인해보기
+- 키바나에 접속하여서 "data view"를 생성하여 로그를 볼 수 있다. (view 이름, 조회할 인덱스, 타임스태프 선택 (정렬조건을 타임스탬프로))
+- 키바나에서 json 필드로 검색: message: "키워드"
+- 키바나에서 json 필드로 검색 and 조건: message: "키워드" and level: "INFO"
+
+#### 대시보드로 로그 데이터 시각화하기
+- 키바나에 접속하여서 대시보드를 생성하고 대시보드안에서 visualization 생성한다. (visualization은 여러개 생성가능)
+- Visualization은 "data index"와 연동된다. 
+- 키바나 시각화는 2가지 방법이 존재한다.
+    - 1. 좌측에서 시각화 하고싶은 필드를 드래그앤드랍으로 시각화하기
+    - 2. 우측에서 차트종류를 선택한다음 x,y축을 필드설정하여 차트로 보기 (주로 가로축은 Date histogram으로 시간으로 설정.)
+- 참고로 하단에 suggestions으로 시각화할수있는 여러 차트 리스트를 보여준다. 클릭해서 다양한 차트로 데이터를 분석할 수 있다.
+- 우상단에서 save return을 누르면 방금 완성한 차트를 대시보드에 넣을수있다. 그상태에서 save를 하면 대시보드가 완성된다.
+
+#### 로그레벨을 기준으로 알림 설정하기
+- 구현 방법은 밑에처럼 엘라스틱서치 조회로 level별 로그 통계를 조회해서 그 정보를 바탕으로
+- 리눅스 서버 cron, 젠킨스, 쿠버네티스의 크론잡등 스케줄링 솔루션을 이용하여 구현하면된다.
+
+```text
+예시
+- fatal, error  -> 1회라도 발생시 알람
+- warn -> 1분간 10회 이상 발생시 알람 + 일단위 리포트
+- debug, trace -> 3일치 로그만 보관 
+```
+
+```text
+url: localhost:9200/application-logs-*/_search
+
+Body (JSON):
+{
+  "size": 0,             // 이걸 넣어줘야 로그리스트 반환이 안됨(필요한 정보는 aggregations 뿐임)
+  "query": {
+    "range": {
+      "timestamp": {
+        "gte": "now-1m", // 기간 설정
+        "lt": "now"      // 기간 설정
+      }
+    }
+  },
+
+  "aggs": {
+    "log_level_aggregation": {
+      "terms": {
+        "field": "level.keyword"
+      }
+    }
+  }
+}
+이렇게 요청하면 반환필드 aggregations에서 다음과 같이 레벨별 로그의 갯수를 확인할 수있다.
+
+"buckets": [
+  {
+    "key": "TRACE",
+    "doc_count": 7204
+  },
+  {
+    "key": "DEBUG",
+    "doc_count": 2715
+  },
+  {
+    "key": "INFO",
+    "doc_count": 80
+  }
+]
+
+```
+
+
+# 5. 부록
+#### 표준출력(println) vs 로깅프레임워크 성능차이
+- println 100만번 출력: 1600ms 
+- SLF4J 100만번 출력: 10ms
+
+
+#### printstackrace() 그냥출력 vs getStackTrace()로 잡아서 로깅프레임워크로 출력 성능차이
+- 위처럼 엄청난 차이는 아니지만 그래도 2배정도 차이난다. 
+    - 호출 깊이가 6뎁스로인 경우로 테스트, 뎁스가 1인경우 차이는 없음
+    - 깊이가 깊어질수록 성능차이가 나고, 뎁스가 1인경우 차이가 없는 경우는 결국 "스택 추적 정보" 가져오는 비용은 동일하기 때문
+- 속도보다 더 중요한 것은 printstackrace()는 로그레벨을 활용할 수 없다. (printstackrace은 표준출력임)
